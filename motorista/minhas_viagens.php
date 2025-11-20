@@ -7,61 +7,49 @@ if (!isset($_SESSION["id"]) || $_SESSION["tipo"] !== "motorista") {
     exit;
 }
 
-$id_motorista = $_SESSION["id"];
-$viagens = $pdo->prepare("SELECT v.*, u.nome as passageiro_nome FROM viagens v JOIN usuarios u ON v.id_passageiro=u.id WHERE id_motorista=? ORDER BY data_hora DESC");
-$viagens->execute([$id_motorista]);
-$viagens = $viagens->fetchAll();
+$id = (int)$_SESSION["id"];
 
-// Finalizar viagem
-if (isset($_GET['finalizar'])) {
-    $pdo->prepare("UPDATE viagens SET estado='concluida' WHERE id=?")->execute([$_GET['finalizar']]);
-    header("Location: minhas_viagens.php");
-    exit;
+try {
+    // Seleciona todas as viagens do motorista
+    $stmt = $pdo->prepare("SELECT * FROM viagens WHERE id_motorista = :id_motorista ORDER BY id DESC");
+    $stmt->execute(['id_motorista' => $id]);
+    $viagens = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (Exception $e) {
+    error_log("Erro ao buscar viagens do motorista: " . $e->getMessage());
+    $viagens = [];
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="pt">
 <head>
     <meta charset="UTF-8">
     <title>Minhas Viagens</title>
-    <link rel="stylesheet" href="../assets/style-dashboard.css">
+    <link rel="stylesheet" href="../assets/css/dashboard.css">
 </head>
 <body>
-<div class="header">
-    <img src="../assets/logo.png" class="logo">
-    <h1>Minhas Viagens</h1>
+
+<div class="topbar">
+    <img src="../assets/img/logo.png" class="logo" alt="logo">
+    <span class="top-title">Minhas Viagens</span>
 </div>
 
 <div class="container">
-    <table border="1" style="width:100%; background:white; border-collapse:collapse; text-align:center;">
-        <tr>
-            <th>ID</th>
-            <th>Passageiro</th>
-            <th>Origem</th>
-            <th>Destino</th>
-            <th>Estado</th>
-            <th>Ação</th>
-        </tr>
-        <?php foreach($viagens as $v): ?>
-            <tr>
-                <td><?= $v['id'] ?></td>
-                <td><?= $v['passageiro_nome'] ?></td>
-                <td><?= $v['origem'] ?></td>
-                <td><?= $v['destino'] ?></td>
-                <td><?= $v['estado'] ?></td>
-                <td>
-                    <?php if($v['estado']=='aceita'): ?>
-                        <a href="?finalizar=<?= $v['id'] ?>">Finalizar</a>
-                    <?php else: ?>
-                        -
-                    <?php endif; ?>
-                </td>
-            </tr>
+    <?php if (empty($viagens)): ?>
+        <p>Você ainda não aceitou nenhuma viagem.</p>
+    <?php else: ?>
+        <?php foreach ($viagens as $d): ?>
+            <div class="card">
+                <p><b>Origem:</b> <?= htmlspecialchars($d['origem'] ?: 'Não informado') ?></p>
+                <p><b>Destino:</b> <?= htmlspecialchars($d['destino'] ?: 'Não informado') ?></p>
+                <p><b>Estado:</b> <?= htmlspecialchars($d['estado']) ?></p>
+
+                <?php if ($d['estado'] === 'aceita'): ?>
+                    <a href="finalizar.php?id=<?= (int)$d['id'] ?>" class="btn">Finalizar Viagem</a>
+                <?php endif; ?>
+            </div>
         <?php endforeach; ?>
-    </table>
-    <br>
-    <a href="dashboard.php">← Voltar</a>
+    <?php endif; ?>
 </div>
+
 </body>
 </html>

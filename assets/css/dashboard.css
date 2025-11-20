@@ -1,0 +1,123 @@
+body {
+    margin: 0;
+    font-family: Arial, Helvetica, sans-serif;
+    background: #f2f2f2;
+    color: #333;
+}
+
+header {
+    background: #111;
+    padding: 18px;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+header h3 {
+    margin: 0;
+}
+
+header .icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+}
+
+.container {
+    padding: 20px;
+}
+
+.btn {
+    background: #111;
+    display: inline-block;
+    padding: 12px 20px;
+    margin: 10px 0;
+    color: #fff;
+    text-decoration: none;
+    border-radius: 6px;
+    transition: 0.2s;
+}
+
+.btn:hover {
+    background: #444;
+}
+
+.card {
+    background: #fff;
+    padding: 15px;
+    border-radius: 6px;
+    margin-bottom: 12px;
+    border-left: 4px solid #333;
+}
+
+input, select {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 12px;
+    border: 1px solid #aaa;
+    border-radius: 6px;
+}
+
+#map {
+    width: 100%;
+    height: 350px;
+    background: #ddd;
+}
+
+#msg {
+    margin-top: 10px;
+    font-size: 16px;
+    font-weight: bold;
+}
+/* ------------------------- */
+/*   TOPO PROFISSIONAL      */
+/* ------------------------- */
+
+.topbar {
+    width: 100%;
+    background: #111;
+    padding: 15px 20px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    color: #fff;
+    box-shadow: 0 0 8px rgba(0,0,0,0.3);
+    position: sticky;
+    top: 0;
+}
+
+.topbar .logo {
+    width: 45px;
+    height: 45px;
+}
+
+.top-title {
+    font-size: 22px;
+    font-weight: bold;
+}
+
+/* Centralizar os botões no container */
+.container {
+    padding: 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;    /* <-- CENTRALIZA HORIZONTALMENTE */
+    justify-content: center;
+    gap: 15px;
+}
+
+/* Botões maiores e centralizados */
+.btn {
+    width: 260px;
+    text-align: center;
+    font-size: 18px;
+}
+
+.logout {
+    background: #b00;
+}
+
+.logout:hover {
+    background: #d00;
+}

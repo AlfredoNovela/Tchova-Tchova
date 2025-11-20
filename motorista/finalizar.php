@@ -2,19 +2,35 @@
 session_start();
 require "../config.php";
 
-$id_m = $_SESSION["id"];
-
-$q = $pdo->prepare("SELECT * FROM viagens WHERE id_motorista=? AND estado='aceita'");
-$q->execute([$id_m]);
-$lista = $q->fetchAll();
-
-foreach ($lista as $v) {
-    echo "Viagem #".$v["id"];
-    echo " <a href='finalizar.php?id=".$v["id"]."'>Finalizar</a><br>";
+if (!isset($_SESSION["id"]) || $_SESSION["tipo"] !== "motorista") {
+    header("Location: ../index.php");
+    exit;
 }
 
-if (isset($_GET["id"])) {
-    $pdo->prepare("UPDATE viagens SET estado='concluida' WHERE id=?")
-        ->execute([$_GET["id"]]);
-    echo "Viagem concluída!";
+$id_viagem = intval($_GET["id"]);
+
+$sql = $conn->query("SELECT * FROM viagens WHERE id=$id_viagem");
+if ($sql->num_rows == 0) {
+    die("Viagem inexistente.");
 }
+
+$viagem = $sql->fetch_assoc();
+
+$conn->query("UPDATE viagens SET estado='finalizada' WHERE id=$id_viagem");
+?>
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="../assets/css/dashboard.css">
+</head>
+<body>
+
+<div class="popup">
+    <h2>Viagem Finalizada</h2>
+    <p>Valor da viagem: <b><?= number_format($viagem['valor'], 2, ',', '.') ?> MT</b></p>
+    <a href="minhas_viagens.php" class="btn">Voltar</a>
+</div>
+
+</body>
+</html>

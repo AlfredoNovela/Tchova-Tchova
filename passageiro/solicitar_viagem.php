@@ -6,178 +6,221 @@ if (!isset($_SESSION["id"]) || $_SESSION["tipo"] !== "passageiro") {
     header("Location: ../index.php");
     exit;
 }
-
-$msg = "";
-
-if ($_SERVER["REQUEST_METHOD"] === "POST") {
-    $origem = $_POST["origem"];
-    $destino = $_POST["destino"];
-    $lat_origem = $_POST["lat_origem"];
-    $lng_origem = $_POST["lng_origem"];
-    $lat_destino = $_POST["lat_destino"];
-    $lng_destino = $_POST["lng_destino"];
-    $id_passageiro = $_SESSION["id"];
-
-    $stmt = $pdo->prepare("INSERT INTO viagens 
-        (id_passageiro, origem, destino, lat_origem, lng_origem, lat_destino, lng_destino, status) 
-        VALUES (?,?,?,?,?,?,?,'pendente')");
-    $stmt->execute([$id_passageiro, $origem, $destino, $lat_origem, $lng_origem, $lat_destino, $lng_destino]);
-
-    $msg = "Viagem solicitada com sucesso!";
-}
+$msg = '';
 ?>
-
 <!DOCTYPE html>
 <html lang="pt">
 <head>
-<meta charset="UTF-8">
-<title>Solicitar Viagem</title>
-
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
-
-<style>
-body { font-family:'Inter',sans-serif; background:#f4f7fa; margin:0; padding:0; }
-.header { display:flex; align-items:center; background:#1f2937; color:#f2f2f2; padding:15px 20px; flex-wrap:wrap; }
-.header .logo { width:50px; height:50px; margin-right:15px; border-radius:12px; }
-.header h1 { font-size:1.3rem; }
-
-.container { padding:20px; max-width:600px; margin:auto; }
-form.card { background:#fff; padding:20px; border-radius:12px; box-shadow:0 6px 15px rgba(0,0,0,0.1); display:flex; flex-direction:column; gap:10px; }
-input { padding:10px; border-radius:8px; border:1px solid #ccc; width:100%; }
-button { padding:12px; background:#3b82f6; color:#fff; border:none; border-radius:8px; cursor:pointer; font-weight:600; }
-button:hover { background:#2563eb; }
-
-#map { width:100%; height:400px; margin-top:15px; border-radius:12px; }
-.msg { margin-top:10px; color:green; font-weight:600; }
-a { display:inline-block; margin-top:10px; color:#3b82f6; text-decoration:none; }
-a:hover { text-decoration:underline; }
-
-#info { margin-top:10px; font-weight:600; }
-</style>
+    <meta charset="UTF-8">
+    <title>Solicitar Viagem</title>
+    <link rel="stylesheet" href="../assets/css/dashboard.css"/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css"/>
+    <style>
+        #map { width:100%; height:420px; margin-top:10px; }
+        .container { display:block; }
+        .card { padding:12px; }
+    </style>
 </head>
 <body>
-
-<div class="header">
-    <img src="../assets/logo.png" class="logo">
-    <h1>Solicitar Viagem</h1>
+<div class="topbar">
+    <img src="../assets/img/logo.png" class="logo">
+    <span class="top-title">Solicitar Viagem</span>
 </div>
 
 <div class="container">
-<form method="POST" class="card" id="viagemForm">
-    <input type="text" name="origem" id="origem" placeholder="Origem" required readonly>
-    <input type="text" name="destino" id="destino" placeholder="Destino" required readonly>
-    <input type="hidden" name="lat_origem" id="lat_origem">
-    <input type="hidden" name="lng_origem" id="lng_origem">
-    <input type="hidden" name="lat_destino" id="lat_destino">
-    <input type="hidden" name="lng_destino" id="lng_destino">
-    <button type="submit" id="btnSolicitar" disabled>Solicitar Corrida</button>
-</form>
+    <form id="viagemForm" class="card">
+        <label class="small-muted">Origem</label>
+        <input type="text" id="origem" name="origem" placeholder="Origem" readonly required>
 
-<p id="info"></p>
-<p class="msg"><?= $msg ?></p>
-<a href="dashboard.php">← Voltar</a>
+        <label class="small-muted">Destino</label>
+        <input type="text" id="destino" name="destino" placeholder="Destino" readonly required>
 
-<div id="map"></div>
+        <input type="hidden" id="lat_origem" name="lat_origem">
+        <input type="hidden" id="lng_origem" name="lng_origem">
+        <input type="hidden" id="lat_destino" name="lat_destino">
+        <input type="hidden" id="lng_destino" name="lng_destino">
+
+        <div style="display:flex; gap:8px; margin-top:10px;">
+            <button type="submit" id="btnSolicitar" class="btn" disabled>Solicitar Corrida</button>
+            <a class="btn ghost" href="dashboard.php">← Voltar</a>
+        </div>
+
+        <p id="info" class="small-muted" style="margin-top:8px"></p>
+        <p id="msg" style="color:green; font-weight:700; margin-top:8px;"><?= htmlspecialchars($msg) ?></p>
+    </form>
+
+    <div class="card">
+        <div id="map"></div>
+    </div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
 
 <script>
-// Inicializa mapa
-let map = L.map('map').setView([-25.965, 32.583], 13);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+let map, origemMarker=null, destinoMarker=null, routeControl=null;
 
-let origemMarker, destinoMarker;
-let routeControl;
-const btn = document.getElementById('btnSolicitar');
-const info = document.getElementById('info');
+// Função para obter endereço via Nominatim
+async function getEndereco(lat, lng){
+    try{
+        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+        const data = await res.json();
+        return data.display_name || `${lat}, ${lng}`;
+    } catch {
+        return `${lat}, ${lng}`;
+    }
+}
 
-// Função para calcular distância entre dois pontos
-function calcularDistancia(lat1,lng1,lat2,lng2){
+// Inicializa o mapa
+function initMap(){
+    map = L.map('map').setView([-25.965,32.583], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:19 }).addTo(map);
+
+    if(navigator.geolocation){
+        navigator.geolocation.getCurrentPosition(async pos=>{
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+            map.setView([lat,lng],14);
+
+            const endereco = await getEndereco(lat,lng);
+            origemMarker = L.marker([lat,lng], {draggable:true}).addTo(map)
+                .bindPopup(endereco).openPopup();
+
+            document.getElementById('lat_origem').value = lat;
+            document.getElementById('lng_origem').value = lng;
+            document.getElementById('origem').value = endereco;
+
+            origemMarker.on('dragend', async e=>{
+                const p = e.target.getLatLng();
+                const novoEndereco = await getEndereco(p.lat,p.lng);
+                e.target.setPopupContent(novoEndereco).openPopup();
+                document.getElementById('lat_origem').value = p.lat;
+                document.getElementById('lng_origem').value = p.lng;
+                document.getElementById('origem').value = novoEndereco;
+                updateRoute();
+            });
+        }, ()=> alert('Não foi possível obter sua localização.'));
+    } else {
+        alert('Geolocalização não suportada pelo navegador.');
+    }
+
+    // Selecionar destino clicando no mapa
+    map.on('click', async function(e){
+        const lat = e.latlng.lat;
+        const lng = e.latlng.lng;
+        const endereco = await getEndereco(lat,lng);
+
+        document.getElementById('lat_destino').value = lat;
+        document.getElementById('lng_destino').value = lng;
+        document.getElementById('destino').value = endereco;
+
+        if(destinoMarker) map.removeLayer(destinoMarker);
+        destinoMarker = L.marker([lat,lng], {draggable:true}).addTo(map).bindPopup(endereco).openPopup();
+
+        destinoMarker.on('dragend', async ev=>{
+            const p = ev.target.getLatLng();
+            const novoEndereco = await getEndereco(p.lat,p.lng);
+            ev.target.setPopupContent(novoEndereco).openPopup();
+            document.getElementById('lat_destino').value = p.lat;
+            document.getElementById('lng_destino').value = p.lng;
+            document.getElementById('destino').value = novoEndereco;
+            updateRoute();
+        });
+
+        updateRoute();
+    });
+}
+
+// Calcula distância Haversine em km
+function calcularDist(lat1,lng1,lat2,lng2){
     const R = 6371;
     const dLat = (lat2-lat1)*Math.PI/180;
     const dLng = (lng2-lng1)*Math.PI/180;
     const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
-    const c = 2*Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     return R*c;
 }
 
-// Habilitar botão apenas se origem e destino existirem
-function updateButtonState(){
-    btn.disabled = !(origemMarker && destinoMarker);
-}
-
-// Atualizar rota e info
+// Atualiza rota e informações
 function updateRoute(){
     if(!origemMarker || !destinoMarker) return;
-    if(routeControl) map.removeControl(routeControl);
 
-    routeControl = L.Routing.control({
-        waypoints: [origemMarker.getLatLng(), destinoMarker.getLatLng()],
-        routeWhileDragging: true,
-        draggableWaypoints: true,
-        show: false,
-        addWaypoints: false
-    }).addTo(map);
+    if(routeControl) map.removeControl(routeControl);
 
     const o = origemMarker.getLatLng();
     const d = destinoMarker.getLatLng();
-    const dist = calcularDistancia(o.lat,o.lng,d.lat,d.lng);
-    const tempo = Math.round(dist/30*60); // 30 km/h
-    const valor = Math.round(dist*1.2*100)/100;
 
-    info.innerText = `Distância: ${dist.toFixed(2)} km | Tempo: ${tempo} min | Valor: R$ ${valor}`;
-    document.getElementById('origem').value = "Minha Localização";
-    document.getElementById('destino').value = `Destino selecionado`;
+    routeControl = L.Routing.control({
+        waypoints:[o,d],
+        lineOptions:{styles:[{color:'#1abc9c', weight:5}]},
+        addWaypoints:false,
+        draggableWaypoints:false,
+        createMarker:()=>null
+    }).addTo(map);
+
+    const dist = calcularDist(o.lat,o.lng,d.lat,d.lng);
+    const tempo = Math.round(dist/30*60);
+    const valor = Math.max(94, Math.round(dist*5));
+    document.getElementById('info').innerText = `Distância: ${dist.toFixed(2)} km | Tempo: ${tempo} min | Valor: ${valor} MZN`;
 }
 
-// Pegar localização GPS do passageiro
-navigator.geolocation.getCurrentPosition(function(pos){
-    let lat = pos.coords.latitude;
-    let lng = pos.coords.longitude;
-    document.getElementById('lat_origem').value = lat;
-    document.getElementById('lng_origem').value = lng;
+// Inicializa mapa e botão
+document.addEventListener('DOMContentLoaded', function(){
+    initMap();
+    const btn = document.getElementById('btnSolicitar');
 
-    origemMarker = L.marker([lat,lng], {draggable:true}).addTo(map).bindPopup("Origem").openPopup();
-    map.setView([lat,lng], 14);
-
-    origemMarker.on('dragend', function(e){
-        let p = e.target.getLatLng();
-        document.getElementById('lat_origem').value = p.lat;
-        document.getElementById('lng_origem').value = p.lng;
-        updateRoute();
+    const observer = new MutationObserver(()=>{
+        const latO = document.getElementById('lat_origem').value;
+        const latD = document.getElementById('lat_destino').value;
+        btn.disabled = !(latO && latD);
     });
+    observer.observe(document.getElementById('lat_origem'), { attributes:true, attributeFilter:['value'] });
+    observer.observe(document.getElementById('lat_destino'), { attributes:true, attributeFilter:['value'] });
 
-    updateButtonState();
-}, function(err){
-    alert("Não foi possível pegar a localização. Por favor, permita GPS.");
-    btn.disabled = false;
-});
+    document.getElementById('viagemForm').addEventListener('submit', async function(e){
+        e.preventDefault();
+        btn.disabled = true;
 
-// Selecionar destino clicando no mapa
-map.on('click', function(e){
-    let lat = e.latlng.lat;
-    let lng = e.latlng.lng;
-    document.getElementById('lat_destino').value = lat;
-    document.getElementById('lng_destino').value = lng;
+        if(!origemMarker || !destinoMarker){
+            alert('Defina origem e destino');
+            btn.disabled = false;
+            return;
+        }
 
-    if(destinoMarker) map.removeLayer(destinoMarker);
-    destinoMarker = L.marker([lat,lng], {draggable:true}).addTo(map).bindPopup("Destino").openPopup();
+        const latO = origemMarker.getLatLng().lat;
+        const lngO = origemMarker.getLatLng().lng;
+        const latD = destinoMarker.getLatLng().lat;
+        const lngD = destinoMarker.getLatLng().lng;
+        const enderecoO = origemMarker.getPopup().getContent();
+        const enderecoD = destinoMarker.getPopup().getContent();
 
-    destinoMarker.on('dragend', function(ev){
-        let p = ev.target.getLatLng();
-        document.getElementById('lat_destino').value = p.lat;
-        document.getElementById('lng_destino').value = p.lng;
-        updateRoute();
+        const form = new FormData();
+        form.append('lat_origem', latO);
+        form.append('lng_origem', lngO);
+        form.append('lat_destino', latD);
+        form.append('lng_destino', lngD);
+        form.append('origem', enderecoO);
+        form.append('destino', enderecoD);
+
+        try{
+            const res = await fetch('solicitar_viagem_ajax.php', { method:'POST', body:form });
+            const data = await res.json();
+            console.log(data);
+            if(data.ok){
+                document.getElementById('msg').innerText = 'Viagem solicitada com sucesso!';
+                setTimeout(()=> location.href='espera_viagem.php',800);
+            } else {
+                alert('Erro: ' + (data.erro || 'Falha ao solicitar'));
+            }
+        } catch(err){
+            console.error(err);
+            alert('Erro na comunicação');
+        } finally {
+            btn.disabled = false;
+        }
     });
-
-    updateRoute();
-    updateButtonState();
 });
 </script>
-
 </body>
 </html>
