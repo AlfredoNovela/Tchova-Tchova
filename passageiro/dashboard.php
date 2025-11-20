@@ -6,95 +6,58 @@ if (!isset($_SESSION["id"]) || $_SESSION["tipo"] !== "passageiro") {
     header("Location: ../index.php");
     exit;
 }
+
+// Buscar nome do passageiro
+$stmt = $pdo->prepare("SELECT nome FROM usuarios WHERE id = ?");
+$stmt->execute([$_SESSION['id']]);
+$passageiro = $stmt->fetch();
+$nome = $passageiro ? $passageiro['nome'] : "Passageiro";
 ?>
 <!DOCTYPE html>
 <html lang="pt">
 <head>
-    <meta charset="UTF-8">
-    <title>Passageiro - Dashboard</title>
-    <link rel="stylesheet" href="../assets/css/dashboard.css">
-    <style>
-        /* Ajustes específicos para o dashboard do passageiro */
-        .container {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 20px;
-            margin-top: 40px;
-        }
-
-        .card {
-            display: block;
-            width: 250px;
-            padding: 20px;
-            background-color: #1a1a1a;
-            color: #f2f2f2;
-            border-radius: 12px;
-            text-decoration: none;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-
-        .card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 16px rgba(0,0,0,0.3);
-        }
-
-        .card h2 {
-            margin: 0 0 10px 0;
-            font-size: 20px;
-        }
-
-        .card p {
-            font-size: 14px;
-            color: #ccc;
-        }
-
-        .card.danger {
-            background-color: #c0392b;
-            color: #fff;
-        }
-
-        .topbar {
-            display: flex;
-            align-items: center;
-            padding: 15px 20px;
-            background-color: #111;
-            color: #f2f2f2;
-        }
-
-        .topbar .logo {
-            height: 50px;
-            margin-right: 15px;
-        }
-
-        .top-title {
-            font-size: 22px;
-            font-weight: bold;
-        }
-    </style>
+<meta charset="UTF-8">
+<title>Passageiro - Dashboard</title>
+<link rel="stylesheet" href="../assets/css/dashboard.css">
 </head>
 <body>
-<div class="topbar">
-    <img src="../assets/img/logo.png" class="logo">
-    <span class="top-title">Passageiro — Tchova</span>
+<div class="sidebar">
+    <div class="brand">
+        <img src="../assets/img/logo.png" class="brand-logo" alt="Logo">
+        <h2>Tchova</h2>
+    </div>
+    <div class="profile-box">
+        <h3><?= htmlspecialchars($nome) ?></h3>
+        <p>Passageiro</p>
+    </div>
+    <nav>
+        <a href="solicitar_viagem.php">📍 Solicitar Viagem</a>
+        <a href="historico.php">🕒 Histórico de Viagens</a>
+        <a href="../logout.php" class="logout">↩ Sair</a>
+    </nav>
 </div>
 
-<div class="container">
-    <a class="card" href="solicitar_viagem.php">
-        <h2>📍 Solicitar Viagem</h2>
-        <p>Pedir um motorista imediatamente.</p>
-    </a>
+<div class="main">
+    <header>
+        <h1>Olá, <?= htmlspecialchars($nome) ?></h1>
+        <p>Bem-vindo ao Tchova</p>
+    </header>
+    <div class="cards">
+        <a href="solicitar_viagem.php" class="card">
+            <h3>📍 Solicitar Viagem</h3>
+            <p>Pedir um motorista imediatamente.</p>
+        </a>
 
-    <a class="card" href="historico.php">
-        <h2>🕒 Histórico de Viagens</h2>
-        <p>Veja viagens passadas.</p>
-    </a>
+        <a href="historico.php" class="card">
+            <h3>🕒 Histórico de Viagens</h3>
+            <p>Veja suas viagens passadas.</p>
+        </a>
 
-    <a class="card danger" href="../logout.php">
-        <h2>↩ Sair</h2>
-        <p>Terminar sessão.</p>
-    </a>
+        <a href="../logout.php" class="card logout">
+            <h3>↩ Sair</h3>
+            <p>Terminar sessão.</p>
+        </a>
+    </div>
 </div>
 </body>
 </html>

@@ -6,76 +6,115 @@ if (!isset($_SESSION["id"]) || $_SESSION["tipo"] !== "passageiro") {
     header("Location: ../index.php");
     exit;
 }
+
 $msg = '';
 ?>
 <!DOCTYPE html>
 <html lang="pt">
 <head>
-    <meta charset="UTF-8">
-    <title>Solicitar Viagem</title>
-    <link rel="stylesheet" href="../assets/css/dashboard.css"/>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css"/>
-    <style>
-        #map { width:100%; height:420px; margin-top:10px; }
-        .container { display:block; }
-        .card { padding:12px; }
-    </style>
+<meta charset="UTF-8">
+<title>Solicitar Viagem</title>
+<link rel="stylesheet" href="../assets/css/dashboard.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css"/>
+<style>
+/* ===== Layout do dashboard ===== */
+.main {
+    margin-left: 220px; /* largura da sidebar */
+    padding: 20px 40px;
+}
+header h1 { font-size: 28px; margin-bottom: 6px; }
+header p { font-size: 16px; color: #555; margin-bottom: 20px; }
+
+.card {
+    background: #fff;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+}
+
+/* ===== Formulário ===== */
+form label { display: block; margin-top: 10px; font-weight: 500; color: #333; }
+form input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 8px; margin-top: 4px; }
+form .btn { margin-top: 15px; padding: 10px 16px; background:#1B4FA0; color:#fff; border:none; border-radius:8px; cursor:pointer; text-decoration:none; }
+form .btn:hover { background:#2A66CA; }
+form .btn.ghost { background:#ccc; color:#333; margin-left:10px; }
+form .btn.ghost:hover { background:#bbb; }
+
+/* ===== Mapa ===== */
+#map {
+    width: 100%;
+    height: 600px; /* Aumentado para melhor visualização */
+    border-radius: 12px;
+}
+</style>
 </head>
 <body>
-<div class="topbar">
-    <img src="../assets/img/logo.png" class="logo">
-    <span class="top-title">Solicitar Viagem</span>
+<div class="sidebar">
+    <div class="brand">
+        <img src="../assets/img/logo.png" class="brand-logo" alt="Logo">
+        <h2>Tchova</h2>
+    </div>
+    <div class="profile-box">
+        <h3>Passageiro</h3>
+    </div>
+    <nav>
+        <a href="dashboard.php">🏠 Dashboard</a>
+        <a href="historico.php">🕒 Histórico</a>
+        <a href="../logout.php" class="logout">↩ Sair</a>
+    </nav>
 </div>
 
-<div class="container">
-    <form id="viagemForm" class="card">
-        <label class="small-muted">Origem</label>
-        <input type="text" id="origem" name="origem" placeholder="Origem" readonly required>
+<div class="main">
+    <header>
+        <h1>Solicitar Viagem</h1>
+        <p>Defina origem e destino no mapa e solicite seu motorista.</p>
+    </header>
 
-        <label class="small-muted">Destino</label>
-        <input type="text" id="destino" name="destino" placeholder="Destino" readonly required>
+    <!-- Formulário -->
+    <div class="card">
+        <form id="viagemForm">
+            <label>Origem</label>
+            <input type="text" id="origem" name="origem" placeholder="Origem" readonly required>
 
-        <input type="hidden" id="lat_origem" name="lat_origem">
-        <input type="hidden" id="lng_origem" name="lng_origem">
-        <input type="hidden" id="lat_destino" name="lat_destino">
-        <input type="hidden" id="lng_destino" name="lng_destino">
+            <label>Destino</label>
+            <input type="text" id="destino" name="destino" placeholder="Destino" readonly required>
 
-        <div style="display:flex; gap:8px; margin-top:10px;">
+            <input type="hidden" id="lat_origem" name="lat_origem">
+            <input type="hidden" id="lng_origem" name="lng_origem">
+            <input type="hidden" id="lat_destino" name="lat_destino">
+            <input type="hidden" id="lng_destino" name="lng_destino">
+
             <button type="submit" id="btnSolicitar" class="btn" disabled>Solicitar Corrida</button>
             <a class="btn ghost" href="dashboard.php">← Voltar</a>
-        </div>
 
-        <p id="info" class="small-muted" style="margin-top:8px"></p>
-        <p id="msg" style="color:green; font-weight:700; margin-top:8px;"><?= htmlspecialchars($msg) ?></p>
-    </form>
-
-    <div class="card">
-        <div id="map"></div>
+            <p id="info" class="small-muted" style="margin-top:8px"></p>
+            <p id="msg" style="color:green; font-weight:700; margin-top:8px;"><?= htmlspecialchars($msg) ?></p>
+        </form>
     </div>
+
+    <!-- Mapa -->
+    <div id="map"></div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
-
 <script>
+// --- Script do mapa e solicitação ---
 let map, origemMarker=null, destinoMarker=null, routeControl=null;
 
-// Função para obter endereço via Nominatim
 async function getEndereco(lat, lng){
     try{
         const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
         const data = await res.json();
         return data.display_name || `${lat}, ${lng}`;
-    } catch {
-        return `${lat}, ${lng}`;
-    }
+    } catch { return `${lat}, ${lng}`; }
 }
 
-// Inicializa o mapa
 function initMap(){
     map = L.map('map').setView([-25.965,32.583], 13);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:19 }).addTo(map);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{ maxZoom:19 }).addTo(map);
 
     if(navigator.geolocation){
         navigator.geolocation.getCurrentPosition(async pos=>{
@@ -101,11 +140,8 @@ function initMap(){
                 updateRoute();
             });
         }, ()=> alert('Não foi possível obter sua localização.'));
-    } else {
-        alert('Geolocalização não suportada pelo navegador.');
-    }
+    } else { alert('Geolocalização não suportada pelo navegador.'); }
 
-    // Selecionar destino clicando no mapa
     map.on('click', async function(e){
         const lat = e.latlng.lat;
         const lng = e.latlng.lng;
@@ -132,7 +168,6 @@ function initMap(){
     });
 }
 
-// Calcula distância Haversine em km
 function calcularDist(lat1,lng1,lat2,lng2){
     const R = 6371;
     const dLat = (lat2-lat1)*Math.PI/180;
@@ -142,10 +177,8 @@ function calcularDist(lat1,lng1,lat2,lng2){
     return R*c;
 }
 
-// Atualiza rota e informações
 function updateRoute(){
     if(!origemMarker || !destinoMarker) return;
-
     if(routeControl) map.removeControl(routeControl);
 
     const o = origemMarker.getLatLng();
@@ -165,7 +198,6 @@ function updateRoute(){
     document.getElementById('info').innerText = `Distância: ${dist.toFixed(2)} km | Tempo: ${tempo} min | Valor: ${valor} MZN`;
 }
 
-// Inicializa mapa e botão
 document.addEventListener('DOMContentLoaded', function(){
     initMap();
     const btn = document.getElementById('btnSolicitar');
@@ -206,7 +238,6 @@ document.addEventListener('DOMContentLoaded', function(){
         try{
             const res = await fetch('solicitar_viagem_ajax.php', { method:'POST', body:form });
             const data = await res.json();
-            console.log(data);
             if(data.ok){
                 document.getElementById('msg').innerText = 'Viagem solicitada com sucesso!';
                 setTimeout(()=> location.href='espera_viagem.php',800);
@@ -216,9 +247,7 @@ document.addEventListener('DOMContentLoaded', function(){
         } catch(err){
             console.error(err);
             alert('Erro na comunicação');
-        } finally {
-            btn.disabled = false;
-        }
+        } finally { btn.disabled = false; }
     });
 });
 </script>

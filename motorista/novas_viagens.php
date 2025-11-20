@@ -10,7 +10,6 @@ if (!isset($_SESSION["id"]) || $_SESSION["tipo"] !== "motorista") {
 $id_motorista = intval($_SESSION['id']);
 
 try {
-    // Seleciona viagens pendentes
     $stmt = $pdo->query("SELECT v.*, u.nome AS nome_passageiro 
                          FROM viagens v 
                          JOIN usuarios u ON u.id = v.id_passageiro
@@ -29,29 +28,49 @@ try {
 <title>Novas Viagens</title>
 <link rel="stylesheet" href="../assets/css/dashboard.css">
 <style>
-.card { padding:12px; margin-bottom:12px; border:1px solid #ccc; border-radius:6px; background:#fff;}
+/* ajuste local para novos cards */
+.container { display:flex; flex-wrap:wrap; gap:15px; }
+.container .card { width: 250px; }
+.btn { padding:8px 12px; background:#1B4FA0; color:#fff; border:none; border-radius:6px; cursor:pointer; }
+.btn:hover { background:#4A83E8; }
 </style>
 </head>
 <body>
-<div class="topbar">
-    <img src="../assets/img/logo.png" class="logo" alt="logo">
-    <span class="top-title">Novas Viagens</span>
+<div class="sidebar">
+    <div class="brand">
+        <img src="../assets/img/logo.png" class="brand-logo" alt="Logo">
+        <h2>Tchova-Tchova</h2>
+    </div>
+
+    <nav>
+        <a href="dashboard.php">🏠 Dashboard</a>
+        <a href="novas_viagens.php">🚗 Novas Viagens</a>
+        <a href="minhas_viagens.php">📌 Minhas Viagens</a>
+        <a class="logout" href="../logout.php">Sair</a>
+    </nav>
 </div>
 
-<div class="container" id="listaViagens">
-    <?php if(empty($viagens)): ?>
-        <p>Nenhuma viagem disponível no momento.</p>
-    <?php else: ?>
-        <?php foreach($viagens as $v): ?>
-            <div class="card" id="viagem_<?= $v['id'] ?>">
-                <p><b>Passageiro:</b> <?= htmlspecialchars($v['nome_passageiro']) ?></p>
-                <p><b>Origem:</b> <?= htmlspecialchars($v['origem']) ?></p>
-                <p><b>Destino:</b> <?= htmlspecialchars($v['destino']) ?></p>
-                <p><b>Valor:</b> <?= isset($v['valor']) ? 'MTN$ '.number_format($v['valor'],2) : '-' ?></p>
-                <button class="btn" onclick="aceitarViagem(<?= $v['id'] ?>)">Aceitar</button>
-            </div>
-        <?php endforeach; ?>
-    <?php endif; ?>
+<div class="main">
+    <header>
+        <h1>Novas Viagens</h1>
+        <p>Confira as viagens pendentes para aceitar.</p>
+    </header>
+
+    <div class="container" id="listaViagens">
+        <?php if(empty($viagens)): ?>
+            <p>Nenhuma viagem disponível no momento.</p>
+        <?php else: ?>
+            <?php foreach($viagens as $v): ?>
+                <div class="card" id="viagem_<?= $v['id'] ?>">
+                    <p><b>Passageiro:</b> <?= htmlspecialchars($v['nome_passageiro']) ?></p>
+                    <p><b>Origem:</b> <?= htmlspecialchars($v['origem']) ?></p>
+                    <p><b>Destino:</b> <?= htmlspecialchars($v['destino']) ?></p>
+                    <p><b>Valor:</b> <?= isset($v['valor']) ? 'MTN$ '.number_format($v['valor'],2) : '-' ?></p>
+                    <button class="btn" onclick="aceitarViagem(<?= $v['id'] ?>)">Aceitar</button>
+                </div>
+            <?php endforeach; ?>
+        <?php endif; ?>
+    </div>
 </div>
 
 <script>
@@ -66,7 +85,6 @@ async function aceitarViagem(id) {
         const data = await res.json();
 
         if(data.sucesso){
-            // Redireciona imediatamente para a tela de viagem ativa
             window.location.href = 'viagem_ativa.php';
         } else {
             alert('Erro: ' + (data.erro || 'Falha ao aceitar'));
@@ -77,7 +95,7 @@ async function aceitarViagem(id) {
     }
 }
 
-// Atualização automática a cada 5s
+// atualização automática
 setInterval(async () => {
     try{
         const res = await fetch('listar_viagens_ajax.php');

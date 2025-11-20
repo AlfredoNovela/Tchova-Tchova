@@ -1,36 +1,26 @@
 <?php
 session_start();
-require "../config.php";
+require "../config.php"; // aqui já define $pdo
 
 if (!isset($_SESSION["id"]) || $_SESSION["tipo"] !== "motorista") {
     header("Location: ../index.php");
     exit;
 }
 
-$id_viagem = intval($_GET["id"]);
+$id_viagem = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 
-$sql = $conn->query("SELECT * FROM viagens WHERE id=$id_viagem");
-if ($sql->num_rows == 0) {
-    die("Viagem inexistente.");
+if ($id_viagem <= 0) {
+    die("ID de viagem inválido.");
 }
 
-$viagem = $sql->fetch_assoc();
+try {
+    // Atualiza o estado da viagem para 'finalizada'
+    $stmt = $pdo->prepare("UPDATE viagens SET estado='finalizada' WHERE id = ? AND id_motorista = ?");
+    $stmt->execute([$id_viagem, $_SESSION['id']]);
 
-$conn->query("UPDATE viagens SET estado='finalizada' WHERE id=$id_viagem");
-?>
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <link rel="stylesheet" href="../assets/css/dashboard.css">
-</head>
-<body>
-
-<div class="popup">
-    <h2>Viagem Finalizada</h2>
-    <p>Valor da viagem: <b><?= number_format($viagem['valor'], 2, ',', '.') ?> MT</b></p>
-    <a href="minhas_viagens.php" class="btn">Voltar</a>
-</div>
-
-</body>
-</html>
+    // Redireciona de volta para Minhas Viagens
+    header("Location: minhas_viagens.php?msg=viagem_finalizada");
+    exit;
+} catch (Exception $e) {
+    die("Erro ao finalizar a viagem: " . $e->getMessage());
+}
