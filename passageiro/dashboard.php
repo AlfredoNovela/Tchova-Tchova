@@ -23,19 +23,27 @@ $nome = $passageiro ? $passageiro['nome'] : "Passageiro";
 <body>
 <div class="sidebar">
     <div class="brand">
-        <img src="../assets/img/logo.png" class="brand-logo" alt="Logo">
-        <h2>Tchova</h2>
+        <a href="dashboard.php"> <!-- Torna a logo clicável -->
+            <img src="../assets/img/logo.png" class="brand-logo" alt="dashboard">
+        </a>
+        <h2>Tchova-Tchova</h2>
     </div>
+
     <div class="profile-box">
-        <h3><?= htmlspecialchars($nome) ?></h3>
-        <p>Passageiro</p>
+        <div class="profile-img">
+            <img src="../assets/img/user.png" alt="Passageiro" class="car-photo">
+        </div>
+        <h3>Passageiro</h3>
+        
     </div>
+
     <nav>
         <a href="solicitar_viagem.php">📍 Solicitar Viagem</a>
         <a href="historico.php">🕒 Histórico de Viagens</a>
         <a href="../logout.php" class="logout">↩ Sair</a>
     </nav>
 </div>
+
 
 <div class="main">
     <header>

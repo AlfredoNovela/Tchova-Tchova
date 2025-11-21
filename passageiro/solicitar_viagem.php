@@ -53,15 +53,23 @@ form .btn.ghost:hover { background:#bbb; }
 <body>
 <div class="sidebar">
     <div class="brand">
-        <img src="../assets/img/logo.png" class="brand-logo" alt="Logo">
-        <h2>Tchova</h2>
+        <a href="dashboard.php"> <!-- Torna a logo clicável -->
+            <img src="../assets/img/logo.png" class="brand-logo" alt="dashboard">
+        </a>
+        <h2>Tchova-Tchova</h2>
     </div>
+
     <div class="profile-box">
+        <div class="profile-img">
+            <img src="../assets/img/user.png" alt="Passageiro" class="car-photo">
+        </div>
         <h3>Passageiro</h3>
+        
     </div>
+
     <nav>
-        <a href="dashboard.php">🏠 Dashboard</a>
-        <a href="historico.php">🕒 Histórico</a>
+        <a href="solicitar_viagem.php">📍 Solicitar Viagem</a>
+        <a href="historico.php">🕒 Histórico de Viagens</a>
         <a href="../logout.php" class="logout">↩ Sair</a>
     </nav>
 </div>
@@ -87,7 +95,7 @@ form .btn.ghost:hover { background:#bbb; }
             <input type="hidden" id="lng_destino" name="lng_destino">
 
             <button type="submit" id="btnSolicitar" class="btn" disabled>Solicitar Corrida</button>
-            <a class="btn ghost" href="dashboard.php">← Voltar</a>
+            
 
             <p id="info" class="small-muted" style="margin-top:8px"></p>
             <p id="msg" style="color:green; font-weight:700; margin-top:8px;"><?= htmlspecialchars($msg) ?></p>
@@ -193,9 +201,32 @@ function updateRoute(){
     }).addTo(map);
 
     const dist = calcularDist(o.lat,o.lng,d.lat,d.lng);
-    const tempo = Math.round(dist/30*60);
-    const valor = Math.max(94, Math.round(dist*5));
-    document.getElementById('info').innerText = `Distância: ${dist.toFixed(2)} km | Tempo: ${tempo} min | Valor: ${valor} MZN`;
+const tempo = Math.round(dist / 30 * 60); // mesmo cálculo de tempo
+
+// ===== Parâmetros básicos =====
+const valorBase = 50;        // taxa inicial mínima
+const valorPorKm = 30;       // MZN por km
+const valorPorMin = 2;       // MZN por minuto
+
+// ===== Tarifa variável por hora do dia =====
+const horaAtual = new Date().getHours();
+let multiplicador = 1; // tarifa normal
+
+if (horaAtual >= 22 || horaAtual < 6) {
+    multiplicador = 1.5; // tarifa noturna 50% a mais
+} else if (horaAtual >= 7 && horaAtual <= 9) {
+    multiplicador = 1.2; // hora do rush manhã
+} else if (horaAtual >= 17 && horaAtual <= 19) {
+    multiplicador = 1.3; // hora do rush tarde
+}
+
+// ===== Cálculo final =====
+const valorCalculado = (valorBase + (dist * valorPorKm) + (tempo * valorPorMin)) * multiplicador;
+const valor = Math.round(Math.max(94, valorCalculado)); // garante valor mínimo
+
+document.getElementById('info').innerText =
+    `Distância: ${dist.toFixed(2)} km | Tempo: ${tempo} min | Valor: ${valor} MZN`;
+
 }
 
 document.addEventListener('DOMContentLoaded', function(){
@@ -240,7 +271,7 @@ document.addEventListener('DOMContentLoaded', function(){
             const data = await res.json();
             if(data.ok){
                 document.getElementById('msg').innerText = 'Viagem solicitada com sucesso!';
-                setTimeout(()=> location.href='espera_viagem.php',800);
+                setTimeout(()=> location.href='viagem_atual.php',800);
             } else {
                 alert('Erro: ' + (data.erro || 'Falha ao solicitar'));
             }

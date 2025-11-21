@@ -11,6 +11,19 @@ if (!isset($data["id"])) {
 
 $id = intval($data["id"]);
 
+// Busca créditos atuais
+$stmt = $pdo->prepare("SELECT creditos FROM motoristas WHERE id = ?");
+$stmt->execute([$id]);
+$creditos = $stmt->fetchColumn();
+
+if ($creditos < 16) {
+    echo json_encode([
+        "success" => false,
+        "message" => "Você precisa de pelo menos 16 créditos para ficar online."
+    ]);
+    exit;
+}
+
 // Faz toggle do estado online/offline
 $stmt = $pdo->prepare("UPDATE motoristas SET online = NOT online WHERE id = ?");
 $stmt->execute([$id]);

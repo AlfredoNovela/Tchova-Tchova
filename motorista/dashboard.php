@@ -9,7 +9,9 @@ if (!isset($_SESSION["id"]) || $_SESSION["tipo"] !== "motorista") {
 
 $id_motorista = $_SESSION["id"];
 
-// Buscar informações do usuário + motorista
+// =========================
+// Buscar informações do motorista + usuário
+// =========================
 $stmt = $pdo->prepare("
     SELECT 
         usuarios.nome,
@@ -19,12 +21,12 @@ $stmt = $pdo->prepare("
         motoristas.matricula,
         COALESCE(motoristas.lat,-25.93502870038931) AS lat,
         COALESCE(motoristas.lng,32.5480006173226) AS lng,
-        COALESCE(motoristas.online,0) AS online
+        COALESCE(motoristas.online,0) AS online,
+        COALESCE(motoristas.creditos,0.00) AS creditos
     FROM usuarios
     LEFT JOIN motoristas ON usuarios.id = motoristas.id
     WHERE usuarios.id = ?
 ");
-
 $stmt->execute([$id_motorista]);
 $motorista = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -38,12 +40,51 @@ if (!$motorista) {
         'matricula' => '-',
         'lat' => -25.965,
         'lng' => 32.583,
-        'online' => 0
+        'online' => 0,
+        'creditos' => 0.00
     ];
 }
 
 // Define a imagem do carro
 $fotoVeiculo = !empty($motorista['foto_veiculo']) ? $motorista['foto_veiculo'] : 'car-placeholder.png';
+
+// =========================
+// Funções de estatísticas
+// =========================
+function viagensConcluidasHoje($pdo, $id_motorista) {
+    $stmt = $pdo->prepare("
+        SELECT COUNT(*) 
+        FROM viagens 
+        WHERE id_motorista = ? 
+          AND estado = 'concluida' 
+          AND DATE(data_hora) = CURDATE()
+    ");
+    $stmt->execute([$id_motorista]);
+    return (int)$stmt->fetchColumn();
+}
+
+function ganhosHoje($pdo, $id_motorista) {
+    $stmt = $pdo->prepare("
+        SELECT SUM(valor) 
+        FROM viagens 
+        WHERE id_motorista = ? 
+          AND estado = 'concluida' 
+          AND DATE(data_hora) = CURDATE()
+    ");
+    $stmt->execute([$id_motorista]);
+    return (float)$stmt->fetchColumn() ?? 0.00;
+}
+
+// Estatísticas atuais
+$viagensHoje = viagensConcluidasHoje($pdo, $id_motorista);
+$ganhosHoje = ganhosHoje($pdo, $id_motorista);
+$creditos = (float)$motorista['creditos'];
+
+// =========================
+// Controle botão Online
+// =========================
+$btnDisabled = $creditos <= 16 ? "disabled" : "";
+$btnClass = $motorista['online'] ? "online-true" : "online-false";
 ?>
 <!DOCTYPE html>
 <html lang="pt">
@@ -56,33 +97,15 @@ $fotoVeiculo = !empty($motorista['foto_veiculo']) ? $motorista['foto_veiculo'] :
 
 <link rel="stylesheet" href="../assets/css/dashboard.css">
 <style>
-.profile-img img.car-photo {
-    width: 100%;
-    max-width: 180px;
-    height: auto;
-    border-radius: 6px;
-    display: block;
-    margin: 0 auto;
-}
-.map-container {
-    height: 320px;
-    border-radius: 6px;
-    overflow: hidden;
-    margin-bottom: 1rem;
-}
-.online-btn {
-    display:inline-block;
-    padding:8px 14px;
-    border-radius:6px;
-    cursor:pointer;
-    border: none;
-    font-weight:600;
-}
+.profile-img img.car-photo { width:100%; max-width:180px; height:auto; border-radius:6px; display:block; margin:0 auto; }
+.map-container { height:320px; border-radius:6px; overflow:hidden; margin-bottom:1rem; }
+.online-btn { display:inline-block; padding:8px 14px; border-radius:6px; cursor:pointer; border:none; font-weight:600; }
 .online-true { background:#2ecc71; color:#fff; }
 .online-false { background:#e74c3c; color:#fff; }
-.stats { display:flex; gap:1rem; flex-wrap:wrap; }
-.card { background:#fff; padding:12px; border-radius:8px; box-shadow:0 1px 4px rgba(0,0,0,.08); min-width:120px; }
+.stats { display:flex; gap:1rem; flex-wrap:wrap; margin-top:1rem; }
+.card { background:#fff; padding:12px; border-radius:8px; box-shadow:0 1px 4px rgba(0,0,0,.08); min-width:120px; text-align:center; }
 .header-right { display:flex; gap:1rem; align-items:center; }
+p.credit-warning { color:red; margin-top:5px; font-weight:600; }
 </style>
 </head>
 <body>
@@ -115,11 +138,15 @@ $fotoVeiculo = !empty($motorista['foto_veiculo']) ? $motorista['foto_veiculo'] :
             <p>Mantenha-se pronto para novas viagens.</p>
         </div>
         <div class="header-right">
-            <button id="toggleOnlineBtn" class="online-btn <?php echo $motorista['online'] ? 'online-true' : 'online-false'; ?>">
+            <button id="toggleOnlineBtn" class="online-btn <?php echo $btnClass ?>" <?php echo $btnDisabled; ?>>
                 <?php echo $motorista['online'] ? 'Online' : 'Offline'; ?>
             </button>
         </div>
     </header>
+
+    <?php if($creditos <= 16): ?>
+        <p class="credit-warning">Você precisa de pelo menos 16 créditos para ficar online. Créditos atuais: <?= number_format($creditos,2) ?></p>
+    <?php endif; ?>
 
     <div style="margin-top:16px;">
         <div class="map-container" id="map"></div>
@@ -127,17 +154,17 @@ $fotoVeiculo = !empty($motorista['foto_veiculo']) ? $motorista['foto_veiculo'] :
         <div class="stats">
             <div class="card">
                 <h4>Ganhos Hoje</h4>
-                <p id="ganhosHoje">-- MT</p>
+                <p id="ganhosHoje"><?= number_format($ganhosHoje, 2) ?> MT</p>
             </div>
 
             <div class="card">
                 <h4>Viagens Concluídas (Hoje)</h4>
-                <p id="viagensConcluidas">--</p>
+                <p id="viagensConcluidas"><?= $viagensHoje ?></p>
             </div>
 
             <div class="card">
-                <h4>Avaliação</h4>
-                <p id="avaliacao">★ ★ ★ ★ ☆</p>
+                <h4>Créditos</h4>
+                <p id="creditos"><?= number_format($creditos, 2) ?></p>
             </div>
         </div>
     </div>
@@ -193,7 +220,7 @@ async function fetchStats() {
         const data = await res.json();
         document.getElementById('ganhosHoje').textContent = (data.ganhosHoje ?? '0.00') + ' MT';
         document.getElementById('viagensConcluidas').textContent = (data.viagensConcluidas ?? '0');
-        if (data.avaliacao) document.getElementById('avaliacao').textContent = data.avaliacao;
+        document.getElementById('creditos').textContent = (data.creditos ?? '0.00');
     } catch (err) {
         console.error(err);
     }
